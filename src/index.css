@@ -1,0 +1,486 @@
+:root {
+  --bg: #0b0e0c;
+  --surface: #141815;
+  --surface-raised: #1b201c;
+  --border: #2a3129;
+  --ink: #f2f4f0;
+  --muted: #8b9488;
+  --accent: #4ade80;
+  --accent-dim: #2f6b47;
+  --start-color: #5ec8f2;
+  --top-color: #f2c94c;
+  --impact-color: #ef5b5b;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input {
+  font-family: inherit;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 30rem;
+  margin: 0 auto;
+}
+
+.app-content {
+  flex: 1;
+  padding: 1.5rem 1.25rem 1rem;
+  overflow-y: auto;
+}
+
+/* Tempo display */
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+}
+
+.tempo-display {
+  text-align: center;
+  padding: 0.5rem 0 1.25rem;
+}
+
+.tempo-name {
+  margin: 0.25rem 0 0;
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.tempo-ratio {
+  margin: 0.25rem 0 1rem;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.tempo-durations {
+  display: flex;
+  justify-content: center;
+  gap: 2.5rem;
+}
+
+.tempo-duration,
+.custom-summary > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.value {
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Timeline */
+
+.swing-timeline {
+  padding: 0.5rem 0 1.5rem;
+}
+
+.timeline-bar {
+  display: flex;
+  height: 0.6rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+
+.segment {
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.segment-backswing {
+  background: var(--start-color);
+}
+
+.segment-downswing {
+  background: var(--impact-color);
+}
+
+.timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Swing indicators */
+
+.swing-indicators {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  padding-bottom: 1.5rem;
+}
+
+.indicator {
+  padding: 1.1rem 0.5rem;
+  border-radius: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  color: var(--muted);
+  transition:
+    background-color 0.08s ease,
+    color 0.08s ease,
+    transform 0.08s ease,
+    box-shadow 0.08s ease;
+}
+
+.indicator-start.is-active {
+  background: var(--start-color);
+  color: #05202c;
+  transform: scale(1.04);
+  box-shadow: 0 0 0.9rem color-mix(in srgb, var(--start-color) 60%, transparent);
+}
+
+.indicator-top.is-active {
+  background: var(--top-color);
+  color: #2b2205;
+  transform: scale(1.04);
+  box-shadow: 0 0 0.9rem color-mix(in srgb, var(--top-color) 60%, transparent);
+}
+
+.indicator-impact.is-active {
+  background: var(--impact-color);
+  color: #2a0505;
+  transform: scale(1.08);
+  box-shadow: 0 0 1.1rem color-mix(in srgb, var(--impact-color) 70%, transparent);
+}
+
+/* Preset selector */
+
+.preset-selector {
+  padding-bottom: 1.25rem;
+}
+
+.preset-group {
+  margin-bottom: 0.85rem;
+}
+
+.preset-group-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.preset-buttons {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.preset-button {
+  flex: 1;
+  padding: 0.9rem 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.preset-button.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--ink);
+}
+
+.custom-button {
+  width: 100%;
+  margin-top: 0.2rem;
+}
+
+/* Custom tempo */
+
+.custom-tempo {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.custom-inputs {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.custom-inputs label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.custom-inputs input {
+  padding: 0.7rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.custom-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+/* Rest control */
+
+.rest-control {
+  padding-bottom: 1.5rem;
+  text-align: center;
+}
+
+.rest-label {
+  margin: 0 0 0.6rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rest-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+.rest-stepper button {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.rest-stepper button:disabled {
+  opacity: 0.35;
+}
+
+.rest-value {
+  min-width: 4.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Start / stop */
+
+.start-stop-button {
+  display: block;
+  width: 100%;
+  padding: 1.35rem;
+  border-radius: 1rem;
+  border: none;
+  background: var(--accent);
+  color: #0b1f10;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.start-stop-button.is-playing {
+  background: var(--impact-color);
+  color: #2a0505;
+}
+
+/* Tempo finder */
+
+.tempo-finder,
+.tempo-finder-results {
+  text-align: center;
+  padding-top: 0.5rem;
+}
+
+.tempo-finder h1,
+.tempo-finder-results h1 {
+  margin: 0.3rem 0 1rem;
+  font-size: 1.6rem;
+}
+
+.finder-instructions {
+  color: var(--muted);
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
+.finder-tap-button {
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: 18rem;
+  border-radius: 1.5rem;
+  border: 2px solid var(--accent);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.finder-tap-button:active {
+  background: var(--accent-dim);
+}
+
+.finder-progress {
+  margin-top: 1rem;
+  color: var(--muted);
+}
+
+.finder-history {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  text-align: left;
+}
+
+.finder-history-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.finder-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.finder-history li {
+  padding: 0.2rem 0;
+  color: var(--muted);
+}
+
+.finder-average {
+  margin: 0.6rem 0 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.finder-recommendation {
+  font-weight: 600;
+  margin: 0.5rem 0 1.25rem;
+}
+
+.finder-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.btn-primary,
+.btn-outline {
+  padding: 1.1rem;
+  border-radius: 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.btn-primary {
+  border: none;
+  background: var(--accent);
+  color: #0b1f10;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink);
+}
+
+/* Tab bar */
+
+.tab-bar {
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.5rem;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  gap: 0.5rem;
+}
+
+.tab-bar button {
+  flex: 1;
+  padding: 0.9rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-radius: 0.75rem;
+}
+
+.tab-bar button.is-active {
+  background: var(--surface-raised);
+  color: var(--accent);
+}
