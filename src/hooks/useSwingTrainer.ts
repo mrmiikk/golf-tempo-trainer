@@ -24,14 +24,19 @@ export function useSwingTrainer(backswingFrames: number, downswingFrames: number
     engineRef.current?.update(backswingDuration, downswingDuration, restSeconds);
   }, [backswingDuration, downswingDuration, restSeconds]);
 
-  const start = useCallback(async () => {
-    if (!engineRef.current) {
-      engineRef.current = new TempoAudioEngine(backswingDuration, downswingDuration, restSeconds, handlePhase);
-    }
-    await engineRef.current.start();
-    setIsPlaying(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handlePhase]);
+  const start = useCallback(
+    async (initialDelaySeconds?: number) => {
+      if (!engineRef.current) {
+        // Only reached before any engine exists yet, so these must be the
+        // current values -- a stale closure here would silently start the
+        // very first swing on whatever tempo was selected at mount time.
+        engineRef.current = new TempoAudioEngine(backswingDuration, downswingDuration, restSeconds, handlePhase);
+      }
+      await engineRef.current.start(initialDelaySeconds);
+      setIsPlaying(true);
+    },
+    [handlePhase, backswingDuration, downswingDuration, restSeconds],
+  );
 
   const stop = useCallback(() => {
     engineRef.current?.stop();

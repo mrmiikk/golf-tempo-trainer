@@ -35,12 +35,16 @@ export class TempoAudioEngine {
     this.restSeconds = restSeconds;
   }
 
-  async start() {
+  // initialDelaySeconds lets a caller (e.g. Camera Practice's start countdown)
+  // push the first swing further out while still unlocking/resuming the
+  // AudioContext synchronously within the user's START gesture, as required
+  // by mobile autoplay policies. Default matches the trainer's original timing.
+  async start(initialDelaySeconds = 0.1) {
     const ctx = this.getContext();
     if (ctx.state === "suspended") {
       await ctx.resume();
     }
-    this.nextSwingTime = ctx.currentTime + 0.1;
+    this.nextSwingTime = ctx.currentTime + initialDelaySeconds;
     this.tick();
     this.schedulerId = window.setInterval(() => this.tick(), LOOKAHEAD_MS);
   }
