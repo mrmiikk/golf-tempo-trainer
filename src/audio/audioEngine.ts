@@ -1,4 +1,5 @@
 import type { SwingPhase } from "../types";
+import { schedulePhaseClickAt } from "./clickSound";
 
 // Classic look-ahead scheduler: audio timing is driven entirely by
 // AudioContext.currentTime, never by chained setTimeout calls, so the
@@ -80,33 +81,15 @@ export class TempoAudioEngine {
   private scheduleSwing(startTime: number) {
     const topTime = startTime + this.backswingDuration;
     const impactTime = topTime + this.downswingDuration;
+    const ctx = this.getContext();
 
-    this.scheduleClick(startTime, 700, 0.4);
-    this.scheduleClick(topTime, 900, 0.4);
-    this.scheduleClick(impactTime, 1200, 0.7);
+    schedulePhaseClickAt(ctx, startTime, "start");
+    schedulePhaseClickAt(ctx, topTime, "top");
+    schedulePhaseClickAt(ctx, impactTime, "impact");
 
     this.scheduleVisual(startTime, "start");
     this.scheduleVisual(topTime, "top");
     this.scheduleVisual(impactTime, "impact");
-  }
-
-  private scheduleClick(time: number, frequency: number, peakGain: number) {
-    const ctx = this.getContext();
-    const duration = 0.045;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = "sine";
-    osc.frequency.value = frequency;
-
-    gain.gain.setValueAtTime(0, time);
-    gain.gain.linearRampToValueAtTime(peakGain, time + 0.004);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(time);
-    osc.stop(time + duration + 0.01);
   }
 
   private scheduleVisual(time: number, phase: SwingPhase) {

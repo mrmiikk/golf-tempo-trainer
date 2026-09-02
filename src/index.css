@@ -734,3 +734,478 @@ input {
     flex-direction: row;
   }
 }
+
+/* Camera Practice: Practice / Record mode toggle */
+
+.camera-mode-selector {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+}
+
+.camera-mode-selector button {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  border: none;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+}
+
+.camera-mode-selector button.is-selected {
+  background: var(--surface-raised);
+  color: var(--accent);
+}
+
+.camera-error-note {
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--impact-color);
+  color: var(--impact-color);
+  font-size: 0.8rem;
+}
+
+/* Swing Recorder (Record sub-mode, live view) */
+
+.swing-recorder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.record-swing-button {
+  display: block;
+  width: 100%;
+  padding: 1.2rem;
+  border-radius: 1rem;
+  border: none;
+  background: var(--impact-color);
+  color: #2a0505;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.record-swing-button.is-recording {
+  background: var(--surface-raised);
+  color: var(--impact-color);
+  border: 1px solid var(--impact-color);
+}
+
+.recording-badge {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(20, 24, 21, 0.82);
+  color: var(--impact-color);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.recording-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--impact-color);
+  animation: recording-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes recording-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Swing Review */
+
+.swing-review {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.review-video-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 55vh;
+  border-radius: 1.1rem;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--border);
+}
+
+.review-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+.review-processing-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: rgba(11, 14, 12, 0.6);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Marker jump buttons + guidance */
+
+.marker-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.marker-buttons-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.marker-jump-button {
+  flex: 1;
+  padding: 0.9rem 0.4rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+}
+
+.marker-jump-button.is-active.is-start {
+  border-color: var(--start-color);
+  color: var(--start-color);
+  background: var(--surface-raised);
+}
+
+.marker-jump-button.is-active.is-top {
+  border-color: var(--top-color);
+  color: var(--top-color);
+  background: var(--surface-raised);
+}
+
+.marker-jump-button.is-active.is-impact {
+  border-color: var(--impact-color);
+  color: var(--impact-color);
+  background: var(--surface-raised);
+}
+
+.marker-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  padding: 0.85rem 1rem;
+}
+
+.marker-target-label {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+.marker-target-label.is-start {
+  color: var(--start-color);
+}
+
+.marker-target-label.is-top {
+  color: var(--top-color);
+}
+
+.marker-target-label.is-impact {
+  color: var(--impact-color);
+}
+
+.marker-helper-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.marker-rating {
+  margin-top: 0.7rem;
+}
+
+.marker-rating-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.marker-rating-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.marker-rating-buttons button {
+  flex: 1;
+  padding: 0.5rem 0.4rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.marker-rating-buttons button.is-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Marker timeline */
+
+.marker-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.marker-timeline-track {
+  position: relative;
+  height: 2.2rem;
+  border-radius: 0.6rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.marker-timeline-progress {
+  position: absolute;
+  inset: 0;
+  right: auto;
+  background: var(--accent-dim);
+  border-radius: 0.6rem 0 0 0.6rem;
+}
+
+.marker-timeline-playhead {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--ink);
+  transform: translateX(-1px);
+}
+
+.marker-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-1px);
+}
+
+.marker-tick span {
+  position: absolute;
+  top: -1.15rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.marker-tick.is-start {
+  background: var(--start-color);
+}
+.marker-tick.is-start span {
+  color: var(--start-color);
+}
+
+.marker-tick.is-top {
+  background: var(--top-color);
+}
+.marker-tick.is-top span {
+  color: var(--top-color);
+}
+
+.marker-tick.is-impact {
+  background: var(--impact-color);
+}
+.marker-tick.is-impact span {
+  color: var(--impact-color);
+}
+
+.marker-timeline-scrub {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+/* Frame controls */
+
+.frame-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.frame-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.frame-controls-row button {
+  padding: 0.75rem 0.6rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.frame-controls-play {
+  flex: 1;
+  background: var(--accent-dim) !important;
+  border-color: var(--accent) !important;
+  color: var(--ink) !important;
+  font-weight: 700 !important;
+}
+
+.frame-controls-nudge {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.frame-controls-nudge button {
+  flex: 1;
+  padding: 0.5rem 0.3rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* Playback speed */
+
+.playback-speed-control {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.playback-speed-control button {
+  flex: 1;
+  padding: 0.6rem 0.4rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.playback-speed-control button.is-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* Review marker time readout + fine-tune */
+
+.review-marker-times {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.review-marker-times > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.marker-fine-tune {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.marker-fine-tune-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.4rem;
+}
+
+.marker-fine-tune-controls button {
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.marker-fine-tune-value {
+  min-width: 4rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.review-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.review-toggle-row a.camera-control-chip {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.review-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.review-actions button {
+  flex: 1;
+  padding: 0.9rem;
+  border-radius: 0.9rem;
+  font-weight: 700;
+}
+
+@media (orientation: landscape) {
+  .review-video-stage {
+    aspect-ratio: 16 / 9;
+    max-height: 55vh;
+  }
+}

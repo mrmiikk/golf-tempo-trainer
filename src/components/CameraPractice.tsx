@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PracticeMode, StartDelaySeconds } from "../types";
+import type { CameraMode, PracticeMode, PreparationDelaySeconds, StartDelaySeconds } from "../types";
 import { useSwingTrainer } from "../hooks/useSwingTrainer";
 import { useCameraStream } from "../hooks/useCameraStream";
+import { useSwingRecorder } from "../hooks/useSwingRecorder";
 import type { TempoSelection } from "../hooks/useTempoSelection";
 import { CameraPreview } from "./CameraPreview";
 import { CameraPermission } from "./CameraPermission";
@@ -13,10 +14,14 @@ import { TempoPresetSelector } from "./TempoPresetSelector";
 import { CustomTempoControl } from "./CustomTempoControl";
 import { RestTimeControl } from "./RestTimeControl";
 import { StartStopButton } from "./StartStopButton";
+import { SwingRecorder } from "./SwingRecorder";
+import { RecordedSwingReview } from "./RecordedSwingReview";
 
 const VISUAL_CUES_KEY = "golf-tempo-camera-visual-cues";
 const START_DELAY_KEY = "golf-tempo-camera-start-delay";
 const PRACTICE_MODE_KEY = "golf-tempo-camera-practice-mode";
+const CAMERA_MODE_KEY = "golf-tempo-camera-mode";
+const PREP_DELAY_KEY = "golf-tempo-camera-prep-delay";
 
 function loadBoolean(key: string, fallback: boolean): boolean {
   try {
@@ -50,6 +55,29 @@ function loadPracticeMode(): PracticeMode {
   return "repeat";
 }
 
+function loadCameraMode(): CameraMode {
+  try {
+    const stored = localStorage.getItem(CAMERA_MODE_KEY);
+    if (stored === "practice" || stored === "record") return stored;
+  } catch {
+    // ignore, fall through to default
+  }
+  return "practice";
+}
+
+function loadPreparationDelay(): PreparationDelaySeconds {
+  try {
+    const raw = localStorage.getItem(PREP_DELAY_KEY);
+    if (raw !== null) {
+      const stored = Number(raw);
+      if (stored === 1 || stored === 1.5 || stored === 2 || stored === 3) return stored;
+    }
+  } catch {
+    // ignore, fall through to default
+  }
+  return 1.5;
+}
+
 type Props = {
   tempo: TempoSelection;
 };
@@ -65,15 +93,34 @@ export function CameraPractice({ tempo }: Props) {
     restSeconds,
   );
 
+  const [cameraMode, setCameraMode] = useState<CameraMode>(loadCameraMode);
   const [mirrored, setMirrored] = useState(false);
   const [userSetMirror, setUserSetMirror] = useState(false);
   const [visualCues, setVisualCues] = useState(() => loadBoolean(VISUAL_CUES_KEY, true));
   const [startDelaySeconds, setStartDelaySeconds] = useState<StartDelaySeconds>(loadStartDelay);
   const [practiceMode, setPracticeMode] = useState<PracticeMode>(loadPracticeMode);
+  const [preparationDelay, setPreparationDelay] = useState<PreparationDelaySeconds>(loadPreparationDelay);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const countdownIntervalRef = useRef<number | null>(null);
   const singleShotTimeoutRef = useRef<number | null>(null);
+
+  const recordingTempo = {
+    name: isCustom ? "Custom" : preset.name,
+    backswingFrames: activeFrames.backswingFrames,
+    downswingFrames: activeFrames.downswingFrames,
+    backswingDuration,
+    downswingDuration,
+    ratio,
+  };
+
+  const recorder = useSwingRecorder({
+    stream: camera.stream,
+    tempo: recordingTempo,
+    preparationDelay,
+    startAudio: start,
+    stopAudio: stop,
+  });
 
   // Default mirror to what a natural self-view expects (front camera mirrors,
   // rear camera doesn't) whenever the active camera side changes, unless the
@@ -108,6 +155,22 @@ export function CameraPractice({ tempo }: Props) {
     }
   }, [practiceMode]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(CAMERA_MODE_KEY, cameraMode);
+    } catch {
+      // ignore
+    }
+  }, [cameraMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PREP_DELAY_KEY, String(preparationDelay));
+    } catch {
+      // ignore
+    }
+  }, [preparationDelay]);
+
   const clearTimers = useCallback(() => {
     if (countdownIntervalRef.current !== null) {
       window.clearInterval(countdownIntervalRef.current);
@@ -135,10 +198,17 @@ export function CameraPractice({ tempo }: Props) {
     await start(delay > 0 ? delay : undefined);
 
     if (delay > 0) {
-      let remaining = delay;
-      setCountdown(remaining);
+      // Derive the displayed number from elapsed wall-clock time (polled
+      // frequently) rather than decrementing once per 1s tick, so a single
+      // delayed tick can't cost a full extra second of display lag.
+      const countdownStart = performance.now();
+      let lastShown = delay + 1;
+      setCountdown(delay);
       countdownIntervalRef.current = window.setInterval(() => {
-        remaining -= 1;
+        const elapsed = (performance.now() - countdownStart) / 1000;
+        const remaining = Math.max(0, delay - Math.floor(elapsed));
+        if (remaining === lastShown) return;
+        lastShown = remaining;
         if (remaining > 0) {
           setCountdown(remaining);
         } else {
@@ -149,7 +219,7 @@ export function CameraPractice({ tempo }: Props) {
           }
           window.setTimeout(() => setCountdown(null), 500);
         }
-      }, 1000);
+      }, 100);
     }
 
     if (practiceMode === "single") {
@@ -160,6 +230,14 @@ export function CameraPractice({ tempo }: Props) {
       }, totalMs);
     }
   }, [start, startDelaySeconds, practiceMode, backswingDuration, downswingDuration, handleStop]);
+
+  const handleModeChange = (next: CameraMode) => {
+    handleStop();
+    if (recorder.stage !== "idle") {
+      recorder.retake();
+    }
+    setCameraMode(next);
+  };
 
   const handleSelectPreset = (next: Parameters<typeof selectPreset>[0]) => {
     handleStop();
@@ -188,10 +266,12 @@ export function CameraPractice({ tempo }: Props) {
 
   const handleDisableCamera = () => {
     handleStop();
+    if (recorder.stage !== "idle") recorder.retake();
     camera.disable();
   };
 
   const displayedPhase = visualCues ? activePhase : null;
+  const isReviewing = recorder.stage === "processing" || recorder.stage === "review";
 
   return (
     <div className="camera-practice">
@@ -210,55 +290,114 @@ export function CameraPractice({ tempo }: Props) {
         />
       ) : (
         <>
-          <div className="camera-stage">
-            <CameraPreview stream={camera.stream} mirrored={mirrored} />
-            {visualCues && (
-              <div className={`camera-flash-border${displayedPhase ? ` is-${displayedPhase}` : ""}`} aria-hidden="true" />
-            )}
-            {countdown !== null && (
-              <div className="camera-countdown-overlay">{countdown > 0 ? countdown : "GO"}</div>
-            )}
-            <div className="camera-phase-overlay">
-              <SwingIndicators activePhase={displayedPhase} />
+          {!isReviewing && (
+            <div className="camera-mode-selector" role="group" aria-label="Camera Practice mode">
+              <button
+                type="button"
+                className={cameraMode === "practice" ? "is-selected" : ""}
+                onClick={() => handleModeChange("practice")}
+              >
+                Practice
+              </button>
+              <button
+                type="button"
+                className={cameraMode === "record" ? "is-selected" : ""}
+                onClick={() => handleModeChange("record")}
+              >
+                Record
+              </button>
             </div>
-          </div>
-          <CameraControls
-            canSwitchCamera={camera.canSwitchCamera}
-            onSwitchCamera={camera.switchCamera}
-            mirrored={mirrored}
-            onToggleMirror={handleMirrorToggle}
-            visualCues={visualCues}
-            onToggleVisualCues={setVisualCues}
-            onDisableCamera={handleDisableCamera}
-          />
+          )}
+
+          {cameraMode === "practice" ? (
+            <>
+              <div className="camera-stage">
+                <CameraPreview stream={camera.stream} mirrored={mirrored} />
+                {visualCues && (
+                  <div
+                    className={`camera-flash-border${displayedPhase ? ` is-${displayedPhase}` : ""}`}
+                    aria-hidden="true"
+                  />
+                )}
+                {countdown !== null && (
+                  <div className="camera-countdown-overlay">{countdown > 0 ? countdown : "GO"}</div>
+                )}
+                <div className="camera-phase-overlay">
+                  <SwingIndicators activePhase={displayedPhase} />
+                </div>
+              </div>
+              <CameraControls
+                canSwitchCamera={camera.canSwitchCamera}
+                onSwitchCamera={camera.switchCamera}
+                mirrored={mirrored}
+                onToggleMirror={handleMirrorToggle}
+                visualCues={visualCues}
+                onToggleVisualCues={setVisualCues}
+                onDisableCamera={handleDisableCamera}
+              />
+            </>
+          ) : isReviewing && recorder.recordedSwing ? (
+            <RecordedSwingReview
+              recordedSwing={recorder.recordedSwing}
+              stage={recorder.stage}
+              onProcessed={recorder.finalizeReview}
+              onRetake={recorder.retake}
+              onRecordAnother={recorder.retake}
+            />
+          ) : (
+            <SwingRecorder
+              stream={camera.stream}
+              mirrored={mirrored}
+              activePhase={displayedPhase}
+              visualCues={visualCues}
+              stage={recorder.stage}
+              countdown={recorder.countdown}
+              preparationDelay={preparationDelay}
+              onChangePreparationDelay={setPreparationDelay}
+              onRecordSwing={recorder.recordSwing}
+              onCancelCountdown={recorder.cancelCountdown}
+              onStopRecording={recorder.stopRecording}
+              errorMessage={recorder.errorMessage}
+              canSwitchCamera={camera.canSwitchCamera}
+              onSwitchCamera={camera.switchCamera}
+              onToggleMirror={handleMirrorToggle}
+              onToggleVisualCues={setVisualCues}
+              onDisableCamera={handleDisableCamera}
+            />
+          )}
         </>
       )}
 
-      <TempoPresetSelector
-        selectedName={preset.name}
-        isCustom={isCustom}
-        onSelect={handleSelectPreset}
-        onSelectCustom={handleSelectCustom}
-      />
-      {isCustom && (
-        <CustomTempoControl
-          backswingFrames={customFrames.backswingFrames}
-          downswingFrames={customFrames.downswingFrames}
-          onChange={handleCustomChange}
-        />
+      {!isReviewing && (
+        <>
+          <TempoPresetSelector
+            selectedName={preset.name}
+            isCustom={isCustom}
+            onSelect={handleSelectPreset}
+            onSelectCustom={handleSelectCustom}
+          />
+          {isCustom && (
+            <CustomTempoControl
+              backswingFrames={customFrames.backswingFrames}
+              downswingFrames={customFrames.downswingFrames}
+              onChange={handleCustomChange}
+            />
+          )}
+        </>
       )}
 
-      <div className="camera-practice-options">
-        <PracticeModeSelector value={practiceMode} onChange={setPracticeMode} disabled={isPlaying} />
-        <StartDelayControl value={startDelaySeconds} onChange={setStartDelaySeconds} disabled={isPlaying} />
-      </div>
+      {cameraMode === "practice" && !isReviewing && (
+        <>
+          <div className="camera-practice-options">
+            <PracticeModeSelector value={practiceMode} onChange={setPracticeMode} disabled={isPlaying} />
+            <StartDelayControl value={startDelaySeconds} onChange={setStartDelaySeconds} disabled={isPlaying} />
+          </div>
 
-      <RestTimeControl restSeconds={restSeconds} onChange={handleRestChange} />
-      <StartStopButton
-        isPlaying={isPlaying}
-        onToggle={isPlaying ? handleStop : handleStart}
-      />
-      <p className="camera-privacy-note">Camera video stays on your device and is not uploaded.</p>
+          <RestTimeControl restSeconds={restSeconds} onChange={handleRestChange} />
+          <StartStopButton isPlaying={isPlaying} onToggle={isPlaying ? handleStop : () => void handleStart()} />
+          <p className="camera-privacy-note">Camera video stays on your device and is not uploaded.</p>
+        </>
+      )}
     </div>
   );
 }
