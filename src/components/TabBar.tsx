@@ -1,22 +1,31 @@
-export type Tab = "trainer" | "camera" | "finder";
+export type Tab = "trainer" | "camera" | "bag" | "history" | "finder";
 
 type Props = {
   active: Tab;
   onChange: (tab: Tab) => void;
 };
 
+const TABS: { id: Tab; label: string }[] = [
+  { id: "trainer", label: "Tempo Trainer" },
+  { id: "camera", label: "Camera Practice" },
+  { id: "bag", label: "My Bag" },
+  { id: "history", label: "History" },
+  { id: "finder", label: "Tempo Finder" },
+];
+
 export function TabBar({ active, onChange }: Props) {
   return (
     <nav className="tab-bar">
-      <button type="button" className={active === "trainer" ? "is-active" : ""} onClick={() => onChange("trainer")}>
-        Tempo Trainer
-      </button>
-      <button type="button" className={active === "camera" ? "is-active" : ""} onClick={() => onChange("camera")}>
-        Camera Practice
-      </button>
-      <button type="button" className={active === "finder" ? "is-active" : ""} onClick={() => onChange("finder")}>
-        Tempo Finder
-      </button>
+      {TABS.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          className={active === tab.id ? "is-active" : ""}
+          onClick={() => onChange(tab.id)}
+        >
+          {tab.label}
+        </button>
+      ))}
     </nav>
   );
 }

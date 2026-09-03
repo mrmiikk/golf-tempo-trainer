@@ -24,6 +24,9 @@ import { RestTimeControl } from "./RestTimeControl";
 import { StartStopButton } from "./StartStopButton";
 import { SwingRecorder } from "./SwingRecorder";
 import { RecordedSwingReview } from "./RecordedSwingReview";
+import { describeSelection } from "../practice/describeSelection";
+import type { PracticeSession } from "../practice/types";
+import type { PracticeStore } from "../practice/usePracticeStore";
 
 const VISUAL_CUES_KEY = "golf-tempo-camera-visual-cues";
 const START_DELAY_KEY = "golf-tempo-camera-start-delay";
@@ -127,9 +130,11 @@ function loadRestBetweenSwings(): TimeBetweenSwingsSeconds {
 
 type Props = {
   tempo: TempoSelection;
+  activeSession: PracticeSession | null;
+  practiceStore: PracticeStore;
 };
 
-export function CameraPractice({ tempo }: Props) {
+export function CameraPractice({ tempo, activeSession, practiceStore }: Props) {
   const { preset, isCustom, customFrames, restSeconds, activeFrames, ratio, selectPreset, selectCustom, updateCustomFrames, setRestSeconds } =
     tempo;
 
@@ -345,6 +350,25 @@ export function CameraPractice({ tempo }: Props) {
     camera.disable();
   };
 
+  // Every video recorded belongs to whichever session was active when the
+  // recording finished -- no reliable automatic link to a specific logged
+  // Shot exists yet (that would need real pose detection or the user
+  // manually pairing a video with a shot), so shotId stays null for now.
+  const loggedRecordingIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeSession) return;
+    if (recorder.stage !== "review" || !recorder.recordedSession) return;
+    if (loggedRecordingIdRef.current === recorder.recordedSession.id) return;
+    loggedRecordingIdRef.current = recorder.recordedSession.id;
+    practiceStore.addVideoRecording({
+      sessionId: activeSession.id,
+      shotId: null,
+      swingCount: recorder.recordedSession.swingCount,
+      mimeType: recorder.recordedSession.mimeType,
+      videoUrl: recorder.recordedSession.videoUrl,
+    });
+  }, [activeSession, recorder.stage, recorder.recordedSession, practiceStore]);
+
   const displayedPhase = visualCues ? activePhase : null;
   const isReviewing = recorder.stage === "processing" || recorder.stage === "review";
 
@@ -355,6 +379,10 @@ export function CameraPractice({ tempo }: Props) {
         <span className="camera-tempo-name">{isCustom ? "Custom" : preset.name}</span>
         <span className="camera-tempo-ratio">{ratio.toFixed(2)} : 1</span>
       </div>
+
+      {activeSession && (
+        <p className="session-linked-banner">Linked to session: {describeSelection(activeSession.selection)}</p>
+      )}
 
       {camera.status !== "active" ? (
         <CameraPermission
