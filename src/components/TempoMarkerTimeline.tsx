@@ -1,13 +1,19 @@
-import type { VideoTempoMarkers } from "../types";
+import type { SwingMarkerSet, SwingPhase } from "../types";
 
 type Props = {
   duration: number;
   currentTime: number;
-  markers: VideoTempoMarkers;
+  swings: SwingMarkerSet[];
   onSeek: (time: number) => void;
+  onMarkerTap: (swingNumber: number, phase: SwingPhase, time: number) => void;
 };
 
-export function TempoMarkerTimeline({ duration, currentTime, markers, onSeek }: Props) {
+// One timeline spans the whole recorded session; every swing's START/TOP/
+// IMPACT appears on it as a small colored tick (no per-tick text -- with up
+// to 10 swings that's 30 marks, and permanent labels for all of them would
+// overlap into noise on a phone). Tapping a tick jumps straight to it; the
+// caller shows which marker was tapped elsewhere on screen.
+export function TempoMarkerTimeline({ duration, currentTime, swings, onSeek, onMarkerTap }: Props) {
   const safeDuration = duration > 0 ? duration : 0.001;
   const pct = (t: number) => `${Math.min(100, Math.max(0, (t / safeDuration) * 100))}%`;
 
@@ -15,15 +21,20 @@ export function TempoMarkerTimeline({ duration, currentTime, markers, onSeek }: 
     <div className="marker-timeline">
       <div className="marker-timeline-track">
         <div className="marker-timeline-progress" style={{ width: pct(currentTime) }} />
-        <div className="marker-tick is-start" style={{ left: pct(markers.start) }}>
-          <span>START</span>
-        </div>
-        <div className="marker-tick is-top" style={{ left: pct(markers.top) }}>
-          <span>TOP</span>
-        </div>
-        <div className="marker-tick is-impact" style={{ left: pct(markers.impact) }}>
-          <span>IMPACT</span>
-        </div>
+        {swings.map((swing) => (
+          <div key={swing.swingNumber} className="marker-timeline-swing-group">
+            {(["start", "top", "impact"] as SwingPhase[]).map((phase) => (
+              <button
+                key={phase}
+                type="button"
+                className={`marker-tick is-${phase}`}
+                style={{ left: pct(swing[phase]) }}
+                onClick={() => onMarkerTap(swing.swingNumber, phase, swing[phase])}
+                aria-label={`Swing ${swing.swingNumber} ${phase}`}
+              />
+            ))}
+          </div>
+        ))}
         <div className="marker-timeline-playhead" style={{ left: pct(currentTime) }} />
       </div>
       <input

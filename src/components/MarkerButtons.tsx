@@ -1,4 +1,4 @@
-import type { SwingPhase, SwingRating } from "../types";
+import type { ActiveSwingMarker, SwingPhase, SwingRating } from "../types";
 
 const HELPER_TEXT: Record<SwingPhase, string> = {
   start: "This is the target moment the takeaway should begin.",
@@ -13,42 +13,51 @@ const RATING_LABELS: Record<SwingRating, string> = {
 };
 
 type Props = {
-  activeMarker: SwingPhase | null;
-  onJump: (marker: SwingPhase) => void;
+  activeMarker: ActiveSwingMarker | null;
+  onJumpToPhase: (phase: SwingPhase) => void;
   ratings: Partial<Record<SwingPhase, SwingRating>>;
-  onRate: (marker: SwingPhase, rating: SwingRating) => void;
+  onRate: (marker: ActiveSwingMarker, rating: SwingRating) => void;
 };
 
-export function MarkerButtons({ activeMarker, onJump, ratings, onRate }: Props) {
+// The three buttons jump to whichever swing's marker of that phase is
+// nearest the current playhead -- there is no separate "select a swing"
+// step. `activeMarker` reflects the most recently jumped-to (or tapped, or
+// played-past) marker, swing number included, so the detail panel and
+// fine-tune/rating controls always say exactly which swing they apply to.
+export function MarkerButtons({ activeMarker, onJumpToPhase, ratings, onRate }: Props) {
   return (
     <div className="marker-buttons">
       <div className="marker-buttons-row">
-        {(["start", "top", "impact"] as SwingPhase[]).map((marker) => (
+        {(["start", "top", "impact"] as SwingPhase[]).map((phase) => (
           <button
-            key={marker}
+            key={phase}
             type="button"
-            className={`marker-jump-button${activeMarker === marker ? ` is-active is-${marker}` : ""}`}
-            onClick={() => onJump(marker)}
+            className={`marker-jump-button${activeMarker?.phase === phase ? ` is-active is-${phase}` : ""}`}
+            onClick={() => onJumpToPhase(phase)}
           >
-            {marker.toUpperCase()}
+            {phase.toUpperCase()}
           </button>
         ))}
       </div>
 
       {activeMarker && (
         <div className="marker-detail">
-          <p className={`marker-target-label is-${activeMarker}`}>TARGET: {activeMarker.toUpperCase()}</p>
-          <p className="marker-helper-text">{HELPER_TEXT[activeMarker]}</p>
+          <p className={`marker-target-label is-${activeMarker.phase}`}>
+            SWING {activeMarker.swingNumber} — {activeMarker.phase.toUpperCase()}
+          </p>
+          <p className="marker-helper-text">{HELPER_TEXT[activeMarker.phase]}</p>
 
-          {activeMarker !== "start" && (
+          {activeMarker.phase !== "start" && (
             <div className="marker-rating">
-              <p className="marker-rating-label">Was your {activeMarker.toUpperCase()}:</p>
+              <p className="marker-rating-label">
+                Was swing {activeMarker.swingNumber}'s {activeMarker.phase.toUpperCase()}:
+              </p>
               <div className="marker-rating-buttons">
                 {(["early", "on-time", "late"] as SwingRating[]).map((rating) => (
                   <button
                     key={rating}
                     type="button"
-                    className={ratings[activeMarker] === rating ? "is-selected" : ""}
+                    className={ratings[activeMarker.phase] === rating ? "is-selected" : ""}
                     onClick={() => onRate(activeMarker, rating)}
                   >
                     {RATING_LABELS[rating]}

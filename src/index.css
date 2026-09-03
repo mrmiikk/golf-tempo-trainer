@@ -1015,44 +1015,48 @@ input {
   transform: translateX(-1px);
 }
 
+/* Groups a swing's 3 ticks without affecting their absolute positioning
+   against .marker-timeline-track. */
+.marker-timeline-swing-group {
+  display: contents;
+}
+
+/* Each tick is a real <button> so tap targets stay usable even with up to
+   10 swings x 3 markers on one track: a slim visible line, but a wider
+   invisible hit area via padding on the button itself. */
 .marker-tick {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  transform: translateX(-1px);
+  top: -0.25rem;
+  bottom: -0.25rem;
+  width: 1.15rem;
+  margin-left: -0.575rem;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 
-.marker-tick span {
+.marker-tick::before {
+  content: "";
   position: absolute;
-  top: -1.15rem;
+  top: 0.25rem;
+  bottom: 0.25rem;
   left: 50%;
+  width: 3px;
+  border-radius: 2px;
   transform: translateX(-50%);
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
 }
 
-.marker-tick.is-start {
+.marker-tick.is-start::before {
   background: var(--start-color);
 }
-.marker-tick.is-start span {
-  color: var(--start-color);
-}
 
-.marker-tick.is-top {
+.marker-tick.is-top::before {
   background: var(--top-color);
 }
-.marker-tick.is-top span {
-  color: var(--top-color);
-}
 
-.marker-tick.is-impact {
+.marker-tick.is-impact::before {
   background: var(--impact-color);
-}
-.marker-tick.is-impact span {
-  color: var(--impact-color);
 }
 
 .marker-timeline-scrub {
@@ -1301,36 +1305,37 @@ input {
   line-height: 1;
 }
 
-/* Swing Review: swing selector */
+/* Swing Review: informational current-swing readout + playhead nav.
+   Neither is a "select a swing" control -- both only move the playhead
+   within the single unified session video. */
+
+.current-swing-indicator {
+  margin: 0;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  font-size: 0.85rem;
+}
 
 .swing-selector {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
+  gap: 0.6rem;
 }
 
 .swing-selector button {
-  width: 2.6rem;
-  height: 2.6rem;
-  border-radius: 50%;
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  border-radius: 0.7rem;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--ink);
-  font-size: 1.3rem;
-  line-height: 1;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .swing-selector button:disabled {
   opacity: 0.3;
-}
-
-.swing-selector-label {
-  min-width: 9rem;
-  text-align: center;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--accent);
 }
 
 .play-swing-button {
@@ -1343,43 +1348,4 @@ input {
   color: var(--ink);
   font-weight: 700;
   font-size: 0.9rem;
-}
-
-/* Swing Review: per-swing summary */
-
-.session-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.session-summary-chip {
-  flex: 1 1 6rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.6rem 0.7rem;
-  border-radius: 0.7rem;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  text-align: left;
-}
-
-.session-summary-number {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.session-summary-status {
-  font-size: 0.68rem;
-  color: var(--muted);
-}
-
-.session-summary-chip.is-reviewed .session-summary-status {
-  color: var(--accent);
-}
-
-.session-summary-chip.is-selected {
-  border-color: var(--accent);
 }

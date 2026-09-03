@@ -84,3 +84,11 @@ export type SessionDisplay =
   | { phase: "swing"; swingIndex: number }
   | { phase: "between"; swingIndex: number; nextIn: number }
   | { phase: "done" };
+
+// Identifies one specific marker within a session (which swing, which
+// phase) -- used by Swing Review's unified timeline/buttons so a marker
+// can be addressed without "selecting" a swing as a separate mode.
+export type ActiveSwingMarker = {
+  swingNumber: number;
+  phase: SwingPhase;
+};
