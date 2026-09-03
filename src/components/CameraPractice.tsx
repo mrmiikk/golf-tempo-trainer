@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CameraMode, PracticeMode, PreparationDelaySeconds, StartDelaySeconds } from "../types";
+import type {
+  CameraMode,
+  PracticeMode,
+  PreparationDelaySeconds,
+  RecordingMode,
+  StartDelaySeconds,
+  SwingCount,
+  TimeBetweenSwingsSeconds,
+} from "../types";
 import { useSwingTrainer } from "../hooks/useSwingTrainer";
 import { useCameraStream } from "../hooks/useCameraStream";
 import { useSwingRecorder } from "../hooks/useSwingRecorder";
@@ -22,6 +30,9 @@ const START_DELAY_KEY = "golf-tempo-camera-start-delay";
 const PRACTICE_MODE_KEY = "golf-tempo-camera-practice-mode";
 const CAMERA_MODE_KEY = "golf-tempo-camera-mode";
 const PREP_DELAY_KEY = "golf-tempo-camera-prep-delay";
+const RECORDING_MODE_KEY = "golf-tempo-recording-mode";
+const SWING_COUNT_KEY = "golf-tempo-swing-count";
+const REST_BETWEEN_SWINGS_KEY = "golf-tempo-rest-between-swings";
 
 function loadBoolean(key: string, fallback: boolean): boolean {
   try {
@@ -78,6 +89,42 @@ function loadPreparationDelay(): PreparationDelaySeconds {
   return 1.5;
 }
 
+function loadRecordingMode(): RecordingMode {
+  try {
+    const stored = localStorage.getItem(RECORDING_MODE_KEY);
+    if (stored === "single" || stored === "session") return stored;
+  } catch {
+    // ignore, fall through to default
+  }
+  return "single";
+}
+
+function loadSwingCount(): SwingCount {
+  try {
+    const raw = localStorage.getItem(SWING_COUNT_KEY);
+    if (raw !== null) {
+      const stored = Number(raw);
+      if (stored === 3 || stored === 5 || stored === 10) return stored;
+    }
+  } catch {
+    // ignore, fall through to default
+  }
+  return 5;
+}
+
+function loadRestBetweenSwings(): TimeBetweenSwingsSeconds {
+  try {
+    const raw = localStorage.getItem(REST_BETWEEN_SWINGS_KEY);
+    if (raw !== null) {
+      const stored = Number(raw);
+      if (stored === 3 || stored === 5 || stored === 7 || stored === 10) return stored;
+    }
+  } catch {
+    // ignore, fall through to default
+  }
+  return 5;
+}
+
 type Props = {
   tempo: TempoSelection;
 };
@@ -100,6 +147,9 @@ export function CameraPractice({ tempo }: Props) {
   const [startDelaySeconds, setStartDelaySeconds] = useState<StartDelaySeconds>(loadStartDelay);
   const [practiceMode, setPracticeMode] = useState<PracticeMode>(loadPracticeMode);
   const [preparationDelay, setPreparationDelay] = useState<PreparationDelaySeconds>(loadPreparationDelay);
+  const [recordingMode, setRecordingMode] = useState<RecordingMode>(loadRecordingMode);
+  const [swingCount, setSwingCount] = useState<SwingCount>(loadSwingCount);
+  const [restBetweenSwings, setRestBetweenSwings] = useState<TimeBetweenSwingsSeconds>(loadRestBetweenSwings);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const countdownIntervalRef = useRef<number | null>(null);
@@ -117,9 +167,10 @@ export function CameraPractice({ tempo }: Props) {
   const recorder = useSwingRecorder({
     stream: camera.stream,
     tempo: recordingTempo,
+    mode: recordingMode,
     preparationDelay,
-    startAudio: start,
-    stopAudio: stop,
+    swingCount,
+    restBetweenSwings,
   });
 
   // Default mirror to what a natural self-view expects (front camera mirrors,
@@ -170,6 +221,30 @@ export function CameraPractice({ tempo }: Props) {
       // ignore
     }
   }, [preparationDelay]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RECORDING_MODE_KEY, recordingMode);
+    } catch {
+      // ignore
+    }
+  }, [recordingMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SWING_COUNT_KEY, String(swingCount));
+    } catch {
+      // ignore
+    }
+  }, [swingCount]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(REST_BETWEEN_SWINGS_KEY, String(restBetweenSwings));
+    } catch {
+      // ignore
+    }
+  }, [restBetweenSwings]);
 
   const clearTimers = useCallback(() => {
     if (countdownIntervalRef.current !== null) {
@@ -336,9 +411,9 @@ export function CameraPractice({ tempo }: Props) {
                 onDisableCamera={handleDisableCamera}
               />
             </>
-          ) : isReviewing && recorder.recordedSwing ? (
+          ) : isReviewing && recorder.recordedSession ? (
             <RecordedSwingReview
-              recordedSwing={recorder.recordedSwing}
+              session={recorder.recordedSession}
               stage={recorder.stage}
               onProcessed={recorder.finalizeReview}
               onRetake={recorder.retake}
@@ -348,12 +423,19 @@ export function CameraPractice({ tempo }: Props) {
             <SwingRecorder
               stream={camera.stream}
               mirrored={mirrored}
-              activePhase={displayedPhase}
+              activePhase={visualCues ? recorder.activePhase : null}
               visualCues={visualCues}
               stage={recorder.stage}
               countdown={recorder.countdown}
+              mode={recordingMode}
+              onChangeMode={setRecordingMode}
               preparationDelay={preparationDelay}
               onChangePreparationDelay={setPreparationDelay}
+              swingCount={swingCount}
+              onChangeSwingCount={setSwingCount}
+              restBetweenSwings={restBetweenSwings}
+              onChangeRestBetweenSwings={setRestBetweenSwings}
+              sessionDisplay={recorder.sessionDisplay}
               onRecordSwing={recorder.recordSwing}
               onCancelCountdown={recorder.cancelCountdown}
               onStopRecording={recorder.stopRecording}

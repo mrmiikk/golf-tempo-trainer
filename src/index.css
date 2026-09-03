@@ -1209,3 +1209,177 @@ input {
     max-height: 55vh;
   }
 }
+
+/* Recording mode (Single / Session) */
+
+.recording-mode-selector {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+}
+
+.recording-mode-selector button {
+  flex: 1;
+  padding: 0.55rem 0.5rem;
+  border: none;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.recording-mode-selector button.is-selected {
+  background: var(--surface-raised);
+  color: var(--accent);
+}
+
+.recording-mode-selector button:disabled {
+  opacity: 0.4;
+}
+
+/* Session recording overlay */
+
+.session-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  pointer-events: none;
+}
+
+.session-overlay .recording-badge {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+}
+
+.session-overlay .camera-countdown-overlay {
+  position: static;
+  background: transparent;
+  font-size: 4.5rem;
+}
+
+.session-swing-label {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  background: rgba(20, 24, 21, 0.75);
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+}
+
+.session-next-swing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  background: rgba(11, 14, 12, 0.55);
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+}
+
+.session-next-swing span:first-child {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.session-next-swing-count {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--top-color);
+  line-height: 1;
+}
+
+/* Swing Review: swing selector */
+
+.swing-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.swing-selector button {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.swing-selector button:disabled {
+  opacity: 0.3;
+}
+
+.swing-selector-label {
+  min-width: 9rem;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.play-swing-button {
+  display: block;
+  width: 100%;
+  padding: 0.85rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--accent);
+  background: var(--accent-dim);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* Swing Review: per-swing summary */
+
+.session-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.session-summary-chip {
+  flex: 1 1 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+}
+
+.session-summary-number {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.session-summary-status {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.session-summary-chip.is-reviewed .session-summary-status {
+  color: var(--accent);
+}
+
+.session-summary-chip.is-selected {
+  border-color: var(--accent);
+}

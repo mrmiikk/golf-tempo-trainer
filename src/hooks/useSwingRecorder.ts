@@ -1,33 +1,59 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RecordedSwing, RecordedSwingTempo, RecordingStage } from "../types";
-import { computeRecordingDurationSeconds, computeVideoMarkers } from "../lib/recordingMarkers";
+import type {
+  RecordedSwingSession,
+  RecordedSwingTempo,
+  RecordingMode,
+  RecordingStage,
+  SessionDisplay,
+  SwingCount,
+  SwingMarkerSet,
+  TimeBetweenSwingsSeconds,
+} from "../types";
+import { useSwingTrainer } from "./useSwingTrainer";
+import {
+  computeSessionDisplay,
+  computeSessionMarkers,
+  computeSessionRecordingDurationSeconds,
+  SESSION_INITIAL_DELAY_SECONDS,
+} from "../lib/recordingMarkers";
 import { pickSupportedMimeType, isRecordingSupported } from "../lib/videoRecording";
 
-const COUNTDOWN_SECONDS = 3;
+const SINGLE_MODE_COUNTDOWN_SECONDS = 3;
 
 type Args = {
   stream: MediaStream | null;
   tempo: RecordedSwingTempo;
-  preparationDelay: number;
-  // From useSwingTrainer: the SAME audio engine used everywhere else, not a
-  // separate implementation. startAudio(delay) unlocks/resumes the
-  // AudioContext synchronously in this gesture and schedules the first
-  // swing `delay` seconds out, exactly like Camera Practice's countdown.
-  startAudio: (initialDelaySeconds?: number) => Promise<void>;
-  stopAudio: () => void;
+  mode: RecordingMode;
+  preparationDelay: number; // single mode: pre-recording countdown target, then this many seconds of lead-in
+  swingCount: SwingCount; // session mode
+  restBetweenSwings: TimeBetweenSwingsSeconds; // session mode; also used as the engine's rest in single mode so a
+  // hypothetical "next swing" the engine schedules within its look-ahead window can never audibly fire before stop().
 };
 
-export function useSwingRecorder({ stream, tempo, preparationDelay, startAudio, stopAudio }: Args) {
+export function useSwingRecorder({ stream, tempo, mode, preparationDelay, swingCount, restBetweenSwings }: Args) {
+  // A dedicated TempoAudioEngine instance for recording -- same engine
+  // class/hook as everywhere else, just its own instance so its rest
+  // interval (needed for session mode's repeat-with-gaps) never fights
+  // with Practice mode's independently configured rest.
+  const {
+    activePhase,
+    start: startAudio,
+    stop: stopAudio,
+  } = useSwingTrainer(tempo.backswingFrames, tempo.downswingFrames, restBetweenSwings);
+
   const [stage, setStage] = useState<RecordingStage>("idle");
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [recordedSwing, setRecordedSwing] = useState<RecordedSwing | null>(null);
+  const [sessionDisplay, setSessionDisplay] = useState<SessionDisplay | null>(null);
+  const [recordedSession, setRecordedSession] = useState<RecordedSwingSession | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const autoStopTimeoutRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const videoUrlRef = useRef<string | null>(null);
+  const swingsRef = useRef<SwingMarkerSet[]>([]);
 
   const clearTimers = useCallback(() => {
     if (autoStopTimeoutRef.current !== null) {
@@ -74,6 +100,18 @@ export function useSwingRecorder({ stream, tempo, preparationDelay, startAudio, 
 
     mediaRecorderRef.current = recorder;
 
+    const isSession = mode === "session";
+    const initialDelay = isSession ? SESSION_INITIAL_DELAY_SECONDS : preparationDelay;
+    const effectiveSwingCount = isSession ? swingCount : 1;
+    const swings = computeSessionMarkers(
+      initialDelay,
+      effectiveSwingCount,
+      tempo.backswingDuration,
+      tempo.downswingDuration,
+      restBetweenSwings,
+    );
+    swingsRef.current = swings;
+
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunksRef.current.push(event.data);
     };
@@ -86,51 +124,62 @@ export function useSwingRecorder({ stream, tempo, preparationDelay, startAudio, 
       const blob = new Blob(chunksRef.current, { type: finalMimeType });
       const videoUrl = URL.createObjectURL(blob);
       videoUrlRef.current = videoUrl;
-      const markers = computeVideoMarkers(preparationDelay, tempo.backswingDuration, tempo.downswingDuration);
-      setRecordedSwing({
+      setRecordedSession({
         id: `swing-${Date.now()}`,
         createdAt: Date.now(),
         videoUrl,
         mimeType: finalMimeType,
         duration: 0,
         tempo,
-        markers,
-        preparationDelay,
+        swingCount: swings.length,
+        restBetweenSwings: isSession ? restBetweenSwings : 0,
+        swings,
       });
-      // RecordedSwingReview resolves real duration/frame timing, then
-      // calls finalizeReview() to flip the stage to "review".
       setStage("processing");
+      setRecordingStartedAt(null);
+      setSessionDisplay(null);
     };
 
     // Recorded video t=0 is anchored here. startAudio() is called
     // immediately after so both clocks begin together; any residual gap is
     // MediaRecorder's own encoder-startup latency, not a second timer.
     recorder.start();
-    void startAudio(preparationDelay);
+    setRecordingStartedAt(performance.now());
+    void startAudio(initialDelay);
     setStage("recording");
 
-    const durationMs =
-      computeRecordingDurationSeconds(preparationDelay, tempo.backswingDuration, tempo.downswingDuration) * 1000;
+    const durationSeconds = computeSessionRecordingDurationSeconds(
+      initialDelay,
+      effectiveSwingCount,
+      tempo.backswingDuration,
+      tempo.downswingDuration,
+      restBetweenSwings,
+    );
     autoStopTimeoutRef.current = window.setTimeout(() => {
       autoStopTimeoutRef.current = null;
       stopRecording();
-    }, durationMs);
-  }, [stream, preparationDelay, tempo, startAudio, stopRecording]);
+    }, durationSeconds * 1000);
+  }, [stream, mode, preparationDelay, swingCount, restBetweenSwings, tempo, startAudio, stopRecording]);
 
   const recordSwing = useCallback(() => {
     if (!stream || stage === "countdown" || stage === "recording") return;
     setErrorMessage(null);
+
+    if (mode === "session") {
+      // The 5-4-3-2-1 + GET READY lead-in happens WITHIN the recording
+      // itself (per spec), not as a separate pre-recording countdown.
+      beginRecording();
+      return;
+    }
+
+    // Single mode: unchanged pre-recording 3-2-1 countdown, then record.
     setStage("countdown");
-    // Derive the displayed number from elapsed wall-clock time (polled
-    // frequently) rather than decrementing once per 1s tick -- a single
-    // delayed tick in a plain decrement loses a full second permanently,
-    // while this self-corrects on the very next poll.
     const countdownStart = performance.now();
-    let lastShown = COUNTDOWN_SECONDS + 1;
-    setCountdown(COUNTDOWN_SECONDS);
+    let lastShown = SINGLE_MODE_COUNTDOWN_SECONDS + 1;
+    setCountdown(SINGLE_MODE_COUNTDOWN_SECONDS);
     countdownIntervalRef.current = window.setInterval(() => {
       const elapsed = (performance.now() - countdownStart) / 1000;
-      const remaining = Math.max(0, COUNTDOWN_SECONDS - Math.floor(elapsed));
+      const remaining = Math.max(0, SINGLE_MODE_COUNTDOWN_SECONDS - Math.floor(elapsed));
       if (remaining === lastShown) return;
       lastShown = remaining;
       if (remaining > 0) {
@@ -144,7 +193,7 @@ export function useSwingRecorder({ stream, tempo, preparationDelay, startAudio, 
         beginRecording();
       }
     }, 100);
-  }, [stream, stage, beginRecording]);
+  }, [stream, stage, mode, beginRecording]);
 
   const cancelCountdown = useCallback(() => {
     clearTimers();
@@ -152,8 +201,25 @@ export function useSwingRecorder({ stream, tempo, preparationDelay, startAudio, 
     setStage("idle");
   }, [clearTimers]);
 
+  // Live "SWING n/m" / "NEXT SWING IN x" overlay for session recording.
+  // Polls frequently and fully recomputes from elapsed time each tick.
+  useEffect(() => {
+    if (stage !== "recording" || mode !== "session" || recordingStartedAt === null) {
+      setSessionDisplay(null);
+      return;
+    }
+    const swingDuration = tempo.backswingDuration + tempo.downswingDuration;
+    const update = () => {
+      const elapsed = (performance.now() - recordingStartedAt) / 1000;
+      setSessionDisplay(computeSessionDisplay(elapsed, swingsRef.current, swingDuration));
+    };
+    update();
+    const id = window.setInterval(update, 150);
+    return () => window.clearInterval(id);
+  }, [stage, mode, recordingStartedAt, tempo.backswingDuration, tempo.downswingDuration]);
+
   const finalizeReview = useCallback((duration: number) => {
-    setRecordedSwing((prev) => (prev ? { ...prev, duration } : prev));
+    setRecordedSession((prev) => (prev ? { ...prev, duration } : prev));
     setStage("review");
   }, []);
 
@@ -163,7 +229,7 @@ export function useSwingRecorder({ stream, tempo, preparationDelay, startAudio, 
       URL.revokeObjectURL(videoUrlRef.current);
       videoUrlRef.current = null;
     }
-    setRecordedSwing(null);
+    setRecordedSession(null);
     setErrorMessage(null);
     setStage("idle");
   }, [clearTimers]);
@@ -186,7 +252,9 @@ export function useSwingRecorder({ stream, tempo, preparationDelay, startAudio, 
   return {
     stage,
     countdown,
-    recordedSwing,
+    sessionDisplay,
+    activePhase,
+    recordedSession,
     errorMessage,
     recordSwing,
     stopRecording,

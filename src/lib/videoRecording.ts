@@ -52,3 +52,23 @@ export function resolveVideoDuration(video: HTMLVideoElement): Promise<number> {
     window.setTimeout(finish, 1500);
   });
 }
+
+// Calling play() while a seek is still in flight can stall a recorded
+// Blob's decoder (playback silently never advances). Resolves immediately
+// if no seek is pending, otherwise waits for the "seeked" event (with a
+// safety timeout so a browser that never fires it can't hang playback).
+export function waitForSeek(video: HTMLVideoElement): Promise<void> {
+  if (!video.seeking) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      video.removeEventListener("seeked", onSeeked);
+      resolve();
+    };
+    const onSeeked = () => finish();
+    video.addEventListener("seeked", onSeeked);
+    window.setTimeout(finish, 500);
+  });
+}
