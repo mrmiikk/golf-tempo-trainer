@@ -1357,7 +1357,8 @@ input {
 .practice-view {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.7rem;
+  padding-bottom: 0.5rem;
 }
 
 .practice-view-title {
@@ -1411,11 +1412,11 @@ input {
 .training-context-selector {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.6rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 1rem;
-  padding: 1rem;
+  padding: 0.85rem;
 }
 
 .training-context-grid {
@@ -1974,4 +1975,131 @@ input {
   .session-summary-stats {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+/* ==========================================================================
+   Unified Practice flow: setup's Practice settings block, the final
+   Listen & Practice / Record & Review mode choice, Listen & Practice's own
+   active surface, and Camera Permission's expanded states.
+   ========================================================================== */
+
+.tempo-setup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 0.85rem;
+}
+
+.practice-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 0.85rem;
+}
+
+.mode-choice-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.mode-choice-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 1.1rem 1.2rem;
+  border-radius: 1rem;
+  text-align: left;
+  border: none;
+  background: var(--accent);
+  color: #0b1f10;
+}
+
+.mode-choice-button.mode-choice-button-record {
+  background: transparent;
+  border: 2px solid var(--accent);
+  color: var(--ink);
+}
+
+.mode-choice-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.mode-choice-button.mode-choice-button-record .mode-choice-title {
+  color: var(--accent);
+}
+
+.mode-choice-description {
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 0.85;
+}
+
+.listen-and-practice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.trainer-countdown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  padding: 0.5rem 0;
+}
+
+.add-club-inline-link {
+  display: block;
+  width: fit-content;
+  margin: 0.7rem auto 0;
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
+}
+
+/* Small note shown under the club grid on the always-visible setup page
+   when My Bag has no saved club yet -- unlike the old full-page
+   `.club-manager-empty`, this never replaces the rest of the setup. */
+.club-manager-empty-inline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.camera-permission-hint {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  max-width: 26rem;
+}
+
+.camera-permission-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 20rem;
+}
+
+.camera-permission-actions .btn-primary,
+.camera-permission-actions .btn-outline {
+  width: 100%;
 }

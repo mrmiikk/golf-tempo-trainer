@@ -2,6 +2,8 @@
 // video recordings. Deliberately separate from ../types.ts (the existing
 // tempo-engine/camera types), which stays untouched.
 
+import type { SwingMarkerSet } from "../types";
+
 export type DistanceUnit = "m" | "yd";
 
 export const DEFAULT_DISTANCE_UNIT: DistanceUnit = "m";
@@ -100,6 +102,13 @@ export type VideoRecording = {
   // and Blob URLs don't survive a reload) -- only this metadata is kept.
   // `videoUrl` is populated only for the lifetime of the current page load.
   videoUrl: string | null;
+  // Per-swing START/TOP/IMPACT offsets (seconds into the video). Plain
+  // numbers, safe to persist even though the video itself isn't -- this is
+  // what lets History reconstruct which swings a session contained after
+  // the videoUrl is gone. Older stored records predate this field; the
+  // repository normalizes a missing value to [] on read (see
+  // LocalStoragePracticeRepository.listVideoRecordings).
+  swings: SwingMarkerSet[];
 };
 
 export type PracticeData = {

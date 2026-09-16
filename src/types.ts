@@ -16,19 +16,21 @@ export type CustomFrames = {
 
 export type CameraFacingMode = "environment" | "user";
 
+// Shared by both Listen & Practice and Record & Review -- one practice-mode
+// concept, not a tempo-only copy and a separate recording-only copy.
 export type PracticeMode = "single" | "repeat";
 
 export type StartDelaySeconds = 0 | 3 | 5 | 10;
-
-export type CameraMode = "practice" | "record";
-
-export type PreparationDelaySeconds = 1 | 1.5 | 2 | 3;
 
 export type PlaybackSpeed = 1 | 0.5 | 0.25;
 
 export type SwingRating = "early" | "on-time" | "late";
 
-export type RecordingStage = "idle" | "countdown" | "recording" | "processing" | "review" | "error";
+// No separate "countdown" stage: a start delay (if any) is scheduled via
+// the same AudioContext-precise mechanism as everywhere else and is shown
+// as a cosmetic overlay (via `countdown`) while `stage` is already
+// "recording" -- see useSwingRecorder.
+export type RecordingStage = "idle" | "recording" | "processing" | "review" | "error";
 
 // Offsets from the start of the RECORDED VIDEO (seconds), not from the
 // swing itself -- video t=0 is recordingStart, so start > 0 because
@@ -48,11 +50,10 @@ export type RecordedSwingTempo = {
   ratio: number;
 };
 
-export type RecordingMode = "single" | "session";
-
+// Repeat-mode recording still needs a hard cap -- unlike Listen & Practice's
+// indefinite Repeat, a recording can't run forever. Kept as a Record &
+// Review-only setting for that reason (see AGENTS/summary notes).
 export type SwingCount = 3 | 5 | 10;
-
-export type TimeBetweenSwingsSeconds = 3 | 5 | 7 | 10;
 
 // One swing's markers within a recorded video -- same shape as
 // VideoTempoMarkers plus which swing (1-indexed) this is.

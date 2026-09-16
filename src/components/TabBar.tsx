@@ -1,4 +1,4 @@
-export type Tab = "trainer" | "camera" | "bag" | "history" | "finder";
+export type Tab = "practice" | "bag" | "history" | "finder";
 
 type Props = {
   active: Tab;
@@ -6,8 +6,7 @@ type Props = {
 };
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "trainer", label: "Tempo Trainer" },
-  { id: "camera", label: "Camera Practice" },
+  { id: "practice", label: "Practice" },
   { id: "bag", label: "My Bag" },
   { id: "history", label: "History" },
   { id: "finder", label: "Tempo Finder" },

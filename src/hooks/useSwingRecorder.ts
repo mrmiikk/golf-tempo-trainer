@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  PracticeMode,
   RecordedSwingSession,
   RecordedSwingTempo,
-  RecordingMode,
   RecordingStage,
   SessionDisplay,
+  StartDelaySeconds,
   SwingCount,
   SwingMarkerSet,
-  TimeBetweenSwingsSeconds,
 } from "../types";
 import { useSwingTrainer } from "./useSwingTrainer";
 import {
@@ -17,29 +17,27 @@ import {
   SESSION_INITIAL_DELAY_SECONDS,
 } from "../lib/recordingMarkers";
 import { pickSupportedMimeType, isRecordingSupported } from "../lib/videoRecording";
-
-const SINGLE_MODE_COUNTDOWN_SECONDS = 3;
+import { runDelayCountdown } from "../lib/startDelayCountdown";
 
 type Args = {
   stream: MediaStream | null;
   tempo: RecordedSwingTempo;
-  mode: RecordingMode;
-  preparationDelay: number; // single mode: pre-recording countdown target, then this many seconds of lead-in
-  swingCount: SwingCount; // session mode
-  restBetweenSwings: TimeBetweenSwingsSeconds; // session mode; also used as the engine's rest in single mode so a
-  // hypothetical "next swing" the engine schedules within its look-ahead window can never audibly fire before stop().
+  mode: PracticeMode; // "single": one recorded swing. "repeat": recorded session of up to `swingCount` swings.
+  startDelaySeconds: StartDelaySeconds; // single mode's lead-in before the swing -- same shared setting Listen & Practice uses
+  restSeconds: number; // repeat mode's gap between swings -- same shared "Rest between swings" setting
+  swingCount: SwingCount; // repeat mode's cap (a recording can't run forever)
 };
 
-export function useSwingRecorder({ stream, tempo, mode, preparationDelay, swingCount, restBetweenSwings }: Args) {
+export function useSwingRecorder({ stream, tempo, mode, startDelaySeconds, restSeconds, swingCount }: Args) {
   // A dedicated TempoAudioEngine instance for recording -- same engine
   // class/hook as everywhere else, just its own instance so its rest
-  // interval (needed for session mode's repeat-with-gaps) never fights
-  // with Practice mode's independently configured rest.
+  // interval (needed for repeat mode's repeat-with-gaps) never fights
+  // with Listen & Practice's independently running instance.
   const {
     activePhase,
     start: startAudio,
     stop: stopAudio,
-  } = useSwingTrainer(tempo.backswingFrames, tempo.downswingFrames, restBetweenSwings);
+  } = useSwingTrainer(tempo.backswingFrames, tempo.downswingFrames, restSeconds);
 
   const [stage, setStage] = useState<RecordingStage>("idle");
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -51,7 +49,7 @@ export function useSwingRecorder({ stream, tempo, mode, preparationDelay, swingC
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const autoStopTimeoutRef = useRef<number | null>(null);
-  const countdownIntervalRef = useRef<number | null>(null);
+  const cancelCountdownRef = useRef<(() => void) | null>(null);
   const videoUrlRef = useRef<string | null>(null);
   const swingsRef = useRef<SwingMarkerSet[]>([]);
 
@@ -60,9 +58,9 @@ export function useSwingRecorder({ stream, tempo, mode, preparationDelay, swingC
       window.clearTimeout(autoStopTimeoutRef.current);
       autoStopTimeoutRef.current = null;
     }
-    if (countdownIntervalRef.current !== null) {
-      window.clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
+    if (cancelCountdownRef.current !== null) {
+      cancelCountdownRef.current();
+      cancelCountdownRef.current = null;
     }
   }, []);
 
@@ -78,133 +76,117 @@ export function useSwingRecorder({ stream, tempo, mode, preparationDelay, swingC
     }
   }, [stopAudio]);
 
-  const beginRecording = useCallback(() => {
-    if (!stream) return;
-    if (!isRecordingSupported()) {
-      setStage("error");
-      setErrorMessage("This browser does not support recording video.");
-      return;
-    }
+  const beginRecording = useCallback(
+    (initialDelay: number, effectiveSwingCount: number, isRepeat: boolean) => {
+      if (!stream) return;
+      if (!isRecordingSupported()) {
+        setStage("error");
+        setErrorMessage("This browser does not support recording video.");
+        return;
+      }
 
-    const mimeType = pickSupportedMimeType();
-    chunksRef.current = [];
+      const mimeType = pickSupportedMimeType();
+      chunksRef.current = [];
 
-    let recorder: MediaRecorder;
-    try {
-      recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-    } catch {
-      setStage("error");
-      setErrorMessage("Could not start recording on this device.");
-      return;
-    }
+      let recorder: MediaRecorder;
+      try {
+        recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      } catch {
+        setStage("error");
+        setErrorMessage("Could not start recording on this device.");
+        return;
+      }
 
-    mediaRecorderRef.current = recorder;
+      mediaRecorderRef.current = recorder;
 
-    const isSession = mode === "session";
-    const initialDelay = isSession ? SESSION_INITIAL_DELAY_SECONDS : preparationDelay;
-    const effectiveSwingCount = isSession ? swingCount : 1;
-    const swings = computeSessionMarkers(
-      initialDelay,
-      effectiveSwingCount,
-      tempo.backswingDuration,
-      tempo.downswingDuration,
-      restBetweenSwings,
-    );
-    swingsRef.current = swings;
+      const swings = computeSessionMarkers(
+        initialDelay,
+        effectiveSwingCount,
+        tempo.backswingDuration,
+        tempo.downswingDuration,
+        restSeconds,
+      );
+      swingsRef.current = swings;
 
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunksRef.current.push(event.data);
-    };
-    recorder.onerror = () => {
-      setStage("error");
-      setErrorMessage("Recording failed unexpectedly.");
-    };
-    recorder.onstop = () => {
-      const finalMimeType = recorder.mimeType || mimeType || "video/webm";
-      const blob = new Blob(chunksRef.current, { type: finalMimeType });
-      const videoUrl = URL.createObjectURL(blob);
-      videoUrlRef.current = videoUrl;
-      setRecordedSession({
-        id: `swing-${Date.now()}`,
-        createdAt: Date.now(),
-        videoUrl,
-        mimeType: finalMimeType,
-        duration: 0,
-        tempo,
-        swingCount: swings.length,
-        restBetweenSwings: isSession ? restBetweenSwings : 0,
-        swings,
-      });
-      setStage("processing");
-      setRecordingStartedAt(null);
-      setSessionDisplay(null);
-    };
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        setStage("error");
+        setErrorMessage("Recording failed unexpectedly.");
+      };
+      recorder.onstop = () => {
+        const finalMimeType = recorder.mimeType || mimeType || "video/webm";
+        const blob = new Blob(chunksRef.current, { type: finalMimeType });
+        const videoUrl = URL.createObjectURL(blob);
+        videoUrlRef.current = videoUrl;
+        setRecordedSession({
+          id: `swing-${Date.now()}`,
+          createdAt: Date.now(),
+          videoUrl,
+          mimeType: finalMimeType,
+          duration: 0,
+          tempo,
+          swingCount: swings.length,
+          restBetweenSwings: isRepeat ? restSeconds : 0,
+          swings,
+        });
+        setStage("processing");
+        setRecordingStartedAt(null);
+        setSessionDisplay(null);
+      };
 
-    // Recorded video t=0 is anchored here. startAudio() is called
-    // immediately after so both clocks begin together; any residual gap is
-    // MediaRecorder's own encoder-startup latency, not a second timer.
-    recorder.start();
-    setRecordingStartedAt(performance.now());
-    void startAudio(initialDelay);
-    setStage("recording");
+      // Recorded video t=0 is anchored here. startAudio() is called
+      // immediately after so both clocks begin together; any residual gap is
+      // MediaRecorder's own encoder-startup latency, not a second timer.
+      recorder.start();
+      setRecordingStartedAt(performance.now());
+      void startAudio(initialDelay);
+      setStage("recording");
 
-    const durationSeconds = computeSessionRecordingDurationSeconds(
-      initialDelay,
-      effectiveSwingCount,
-      tempo.backswingDuration,
-      tempo.downswingDuration,
-      restBetweenSwings,
-    );
-    autoStopTimeoutRef.current = window.setTimeout(() => {
-      autoStopTimeoutRef.current = null;
-      stopRecording();
-    }, durationSeconds * 1000);
-  }, [stream, mode, preparationDelay, swingCount, restBetweenSwings, tempo, startAudio, stopRecording]);
+      const durationSeconds = computeSessionRecordingDurationSeconds(
+        initialDelay,
+        effectiveSwingCount,
+        tempo.backswingDuration,
+        tempo.downswingDuration,
+        restSeconds,
+      );
+      autoStopTimeoutRef.current = window.setTimeout(() => {
+        autoStopTimeoutRef.current = null;
+        stopRecording();
+      }, durationSeconds * 1000);
+    },
+    [stream, tempo, restSeconds, startAudio, stopRecording],
+  );
 
   const recordSwing = useCallback(() => {
-    if (!stream || stage === "countdown" || stage === "recording") return;
+    if (!stream || stage === "recording") return;
     setErrorMessage(null);
+    clearTimers();
 
-    if (mode === "session") {
+    if (mode === "repeat") {
       // The 5-4-3-2-1 + GET READY lead-in happens WITHIN the recording
       // itself (per spec), not as a separate pre-recording countdown.
-      beginRecording();
+      beginRecording(SESSION_INITIAL_DELAY_SECONDS, swingCount, true);
       return;
     }
 
-    // Single mode: unchanged pre-recording 3-2-1 countdown, then record.
-    setStage("countdown");
-    const countdownStart = performance.now();
-    let lastShown = SINGLE_MODE_COUNTDOWN_SECONDS + 1;
-    setCountdown(SINGLE_MODE_COUNTDOWN_SECONDS);
-    countdownIntervalRef.current = window.setInterval(() => {
-      const elapsed = (performance.now() - countdownStart) / 1000;
-      const remaining = Math.max(0, SINGLE_MODE_COUNTDOWN_SECONDS - Math.floor(elapsed));
-      if (remaining === lastShown) return;
-      lastShown = remaining;
-      if (remaining > 0) {
-        setCountdown(remaining);
-      } else {
-        if (countdownIntervalRef.current !== null) {
-          window.clearInterval(countdownIntervalRef.current);
-          countdownIntervalRef.current = null;
-        }
-        setCountdown(null);
-        beginRecording();
-      }
-    }, 100);
-  }, [stream, stage, mode, beginRecording]);
+    // Single mode: the real delay is scheduled precisely via
+    // beginRecording's startAudio(initialDelay) call, exactly like Listen &
+    // Practice's own start delay. The countdown shown here is a purely
+    // cosmetic parallel readout of that same window, using the same shared
+    // "Start delay" setting -- not a second, different delay.
+    beginRecording(startDelaySeconds, 1, false);
+    if (startDelaySeconds > 0) {
+      setCountdown(startDelaySeconds);
+      cancelCountdownRef.current = runDelayCountdown(startDelaySeconds, setCountdown);
+    }
+  }, [stream, stage, mode, startDelaySeconds, swingCount, beginRecording, clearTimers]);
 
-  const cancelCountdown = useCallback(() => {
-    clearTimers();
-    setCountdown(null);
-    setStage("idle");
-  }, [clearTimers]);
-
-  // Live "SWING n/m" / "NEXT SWING IN x" overlay for session recording.
+  // Live "SWING n/m" / "NEXT SWING IN x" overlay for repeat-mode recording.
   // Polls frequently and fully recomputes from elapsed time each tick.
   useEffect(() => {
-    if (stage !== "recording" || mode !== "session" || recordingStartedAt === null) {
+    if (stage !== "recording" || mode !== "repeat" || recordingStartedAt === null) {
       setSessionDisplay(null);
       return;
     }
@@ -231,6 +213,7 @@ export function useSwingRecorder({ stream, tempo, mode, preparationDelay, swingC
     }
     setRecordedSession(null);
     setErrorMessage(null);
+    setCountdown(null);
     setStage("idle");
   }, [clearTimers]);
 
@@ -258,7 +241,6 @@ export function useSwingRecorder({ stream, tempo, mode, preparationDelay, swingC
     errorMessage,
     recordSwing,
     stopRecording,
-    cancelCountdown,
     finalizeReview,
     retake,
   };

@@ -40,11 +40,33 @@ export class TempoAudioEngine {
   // push the first swing further out while still unlocking/resuming the
   // AudioContext synchronously within the user's START gesture, as required
   // by mobile autoplay policies. Default matches the trainer's original timing.
+  //
+  // Never fails silently: browsers (Safari especially) can refuse to create
+  // or resume an AudioContext -- e.g. Safari has historically capped how
+  // many concurrent AudioContext instances a page may hold, and a leaked
+  // one from a previous session hitting that cap would otherwise just make
+  // Start do nothing with no explanation. Every failure path here throws a
+  // specific, user-facing message instead.
   async start(initialDelaySeconds = 0.1) {
-    const ctx = this.getContext();
-    if (ctx.state === "suspended") {
-      await ctx.resume();
+    let ctx: AudioContext;
+    try {
+      ctx = this.getContext();
+    } catch {
+      throw new Error("Could not start audio. Try reloading the page.");
     }
+
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch {
+        throw new Error("Audio could not be unlocked. Try tapping Start again.");
+      }
+    }
+
+    if (ctx.state !== "running") {
+      throw new Error("Audio is blocked by the browser. Check this site's sound/autoplay permission and try again.");
+    }
+
     this.nextSwingTime = ctx.currentTime + initialDelaySeconds;
     this.tick();
     this.schedulerId = window.setInterval(() => this.tick(), LOOKAHEAD_MS);
@@ -57,6 +79,20 @@ export class TempoAudioEngine {
     }
     this.visualTimeouts.forEach((id) => window.clearTimeout(id));
     this.visualTimeouts = [];
+  }
+
+  // Actually releases the AudioContext -- stop() alone leaves it open.
+  // Call this when the engine itself is being discarded (component
+  // unmount), not on an ordinary user Stop press within the same session:
+  // a fresh TempoAudioEngine is created per mount, so never closing the
+  // previous one leaked an AudioContext on every practice session. Safari
+  // in particular has a hard limit on how many can exist at once.
+  close() {
+    this.stop();
+    if (this.ctx && this.ctx.state !== "closed") {
+      this.ctx.close().catch(() => {});
+    }
+    this.ctx = null;
   }
 
   private getContext(): AudioContext {

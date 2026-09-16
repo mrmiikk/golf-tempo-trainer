@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { CameraPractice } from "./components/CameraPractice";
 import { TempoFinder } from "./components/TempoFinder";
 import { TabBar, type Tab } from "./components/TabBar";
 import { useTempoSelection } from "./hooks/useTempoSelection";
@@ -10,7 +9,7 @@ import { PracticeHistory } from "./practice/components/PracticeHistory";
 import type { PracticeSession, WedgeSwingLength } from "./practice/types";
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("trainer");
+  const [tab, setTab] = useState<Tab>("practice");
   const tempo = useTempoSelection();
   const practiceStore = usePracticeStore();
   const [activeSession, setActiveSession] = useState<PracticeSession | null>(null);
@@ -20,23 +19,22 @@ export default function App() {
     // implied; re-selecting club/length there is one tap, and keeps
     // PracticeView as the single place session creation happens.
     void clubId;
-    setTab("trainer");
+    setTab("practice");
   };
 
   return (
     <div className="app">
       <main className="app-content">
-        {tab === "trainer" && (
+        {tab === "practice" && (
           <PracticeView
             tempo={tempo}
             store={practiceStore}
             activeSession={activeSession}
             onSessionStart={setActiveSession}
             onSessionEnd={() => setActiveSession(null)}
-            onOpenCamera={() => setTab("camera")}
+            onGoToMyBag={() => setTab("bag")}
           />
         )}
-        {tab === "camera" && <CameraPractice tempo={tempo} activeSession={activeSession} practiceStore={practiceStore} />}
         {tab === "bag" && <MyBagView store={practiceStore} onStartWedgePractice={handleStartWedgePracticeFromMatrix} />}
         {tab === "history" && (
           <PracticeHistory
@@ -53,7 +51,7 @@ export default function App() {
           <TempoFinder
             onTrainWithPreset={(preset) => {
               tempo.selectPreset(preset);
-              setTab("trainer");
+              setTab("practice");
             }}
           />
         )}

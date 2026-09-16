@@ -116,7 +116,13 @@ export class LocalStoragePracticeRepository implements PracticeRepository {
   }
 
   listVideoRecordings(): VideoRecording[] {
-    return readJson<VideoRecording[]>(KEYS.videoRecordings, []);
+    // Compatibility shim: records saved before `swings` existed on this
+    // type won't have it in storage. Normalize to [] rather than letting
+    // `undefined` reach UI code that expects an array.
+    return readJson<VideoRecording[]>(KEYS.videoRecordings, []).map((recording) => ({
+      ...recording,
+      swings: recording.swings ?? [],
+    }));
   }
 
   saveVideoRecording(recording: VideoRecording): void {

@@ -24,8 +24,17 @@ export function usePracticeStore() {
   );
 
   const addClub = useCallback((name: string, category: ClubCategory) => {
+    // The id is generated OUTSIDE the updater, not inside it: React 18
+    // StrictMode intentionally double-invokes a setState updater function
+    // in development to catch impure updaters. Generating a fresh random
+    // id inside the updater made each invocation produce a different club
+    // (and persist both, since practiceRepository.saveClub was also
+    // called from inside it) -- one click could add the same club twice.
+    // With the id fixed up front, both invocations describe the same club
+    // row, so the second save is a harmless idempotent overwrite.
+    const id = makeId("club");
     setClubs((prev) => {
-      const club: Club = { id: makeId("club"), name, category, order: prev.length };
+      const club: Club = { id, name, category, order: prev.length };
       practiceRepository.saveClub(club);
       return [...prev, club];
     });

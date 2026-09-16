@@ -108,7 +108,23 @@ describe("LocalStoragePracticeRepository", () => {
       swingCount: 1,
       mimeType: "video/webm",
       videoUrl: "blob:http://localhost/fake",
+      swings: [{ swingNumber: 1, start: 1, top: 1.8, impact: 2.1 }],
     });
     expect(repo.listVideoRecordings()[0].videoUrl).toBeNull();
+  });
+
+  it("normalizes a video recording saved before `swings` existed to an empty array", () => {
+    const repo = new LocalStoragePracticeRepository();
+    // Simulate pre-migration data written directly to storage, without the
+    // `swings` field this repository's own saveVideoRecording now adds.
+    localStorage.setItem(
+      "golf-tempo-practice-video-recordings-v1",
+      JSON.stringify([
+        { id: "v-old", sessionId: "s1", shotId: null, createdAt: Date.now(), swingCount: 3, mimeType: "video/webm", videoUrl: null },
+      ]),
+    );
+    const recordings = repo.listVideoRecordings();
+    expect(recordings).toHaveLength(1);
+    expect(recordings[0].swings).toEqual([]);
   });
 });
